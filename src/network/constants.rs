@@ -28,14 +28,16 @@ user_enum! {
         #[doc="Classic Bitcoin"]
         Bitcoin <-> "bitcoin",
         #[doc="Bitcoin's testnet"]
-        Testnet <-> "testnet"
+        Testnet <-> "testnet",
+        #[doc="Bitcoin-core's regtest"]
+        BitcoinCoreRegtest <-> "bitcoincoreregtest"
     }
 }
 
 /// Version of the protocol as appearing in network message headers
-pub const PROTOCOL_VERSION: u32    = 70001;
+pub const PROTOCOL_VERSION: u32 = 70001;
 /// Bitfield of services provided by this node
-pub const SERVICES: u64            = 0;
+pub const SERVICES: u64 = 0;
 /// User agent as it appears in the version message
 pub const USER_AGENT: &'static str = "bitcoin-rust v0.1";
 
@@ -44,7 +46,8 @@ pub const USER_AGENT: &'static str = "bitcoin-rust v0.1";
 pub fn magic(network: Network) -> u32 {
     match network {
         Network::Bitcoin => 0xD9B4BEF9,
-        Network::Testnet => 0x0709110B
+        Network::Testnet => 0x0709110B,
+        Network::BitcoinCoreRegtest => 0xDAB5BFFA,
         // Note: any new entries here must be added to `consensus_decode` below
     }
 }
@@ -63,6 +66,7 @@ impl<D: SimpleDecoder> ConsensusDecodable<D> for Network {
         match magic {
             0xD9B4BEF9 => Ok(Network::Bitcoin),
             0x0709110B => Ok(Network::Testnet),
+            0xDAB5BFFA => Ok(Network::BitcoinCoreRegtest),
             x => Err(d.error(format!("Unknown network (magic {:x})", x)))
         }
     }
@@ -70,29 +74,33 @@ impl<D: SimpleDecoder> ConsensusDecodable<D> for Network {
 
 #[cfg(test)]
 mod tests {
-  use super::Network;
-  use network::serialize::{deserialize, serialize};
+    use super::Network;
+    use network::serialize::{deserialize, serialize};
 
-  #[test]
-  fn serialize_test() {
-    assert_eq!(serialize(&Network::Bitcoin).unwrap(), vec![0xf9, 0xbe, 0xb4, 0xd9]);
-    assert_eq!(serialize(&Network::Testnet).unwrap(), vec![0x0b, 0x11, 0x09, 0x07]);
+    #[test]
+    fn serialize_test() {
+        assert_eq!(serialize(&Network::Bitcoin).unwrap(), vec![0xf9, 0xbe, 0xb4, 0xd9]);
+        assert_eq!(serialize(&Network::Testnet).unwrap(), vec![0x0b, 0x11, 0x09, 0x07]);
+        assert_eq!(serialize(&Network::BitcoinCoreRegtest).unwrap(), vec![0xfa, 0xbf, 0xb5, 0xda]);
 
-    assert_eq!(deserialize(&[0xf9, 0xbe, 0xb4, 0xd9]).ok(), Some(Network::Bitcoin));
-    assert_eq!(deserialize(&[0x0b, 0x11, 0x09, 0x07]).ok(), Some(Network::Testnet));
+        assert_eq!(deserialize(&[0xf9, 0xbe, 0xb4, 0xd9]).ok(), Some(Network::Bitcoin));
+        assert_eq!(deserialize(&[0x0b, 0x11, 0x09, 0x07]).ok(), Some(Network::Testnet));
+        assert_eq!(deserialize(&[0xfa, 0xbf, 0xb5, 0xda]).ok(), Some(Network::BitcoinCoreRegtest));
 
-    let bad: Result<Network, _> = deserialize("fakenet".as_bytes());
-    assert!(bad.is_err());
-  }
+        let bad: Result<Network, _> = deserialize("fakenet".as_bytes());
+        assert!(bad.is_err());
+    }
 
-  #[test]
-  fn string_test() {
-      assert_eq!(Network::Bitcoin.to_string(), "bitcoin");
-      assert_eq!(Network::Testnet.to_string(), "testnet");
+    #[test]
+    fn string_test() {
+        assert_eq!(Network::Bitcoin.to_string(), "bitcoin");
+        assert_eq!(Network::Testnet.to_string(), "testnet");
+        assert_eq!(Network::BitcoinCoreRegtest.to_string(), "bitcoincoreregtest");
 
-      assert_eq!("bitcoin".parse::<Network>().unwrap(), Network::Bitcoin);
-      assert_eq!("testnet".parse::<Network>().unwrap(), Network::Testnet);
-      assert!("fakenet".parse::<Network>().is_err());
-  }
+        assert_eq!("bitcoin".parse::<Network>().unwrap(), Network::Bitcoin);
+        assert_eq!("testnet".parse::<Network>().unwrap(), Network::Testnet);
+        assert_eq!("bitcoincoreregtest".parse::<Network>().unwrap(), Network::BitcoinCoreRegtest);
+        assert!("fakenet".parse::<Network>().is_err());
+    }
 }
 
